@@ -7,11 +7,11 @@ import scala.math.max
 import scala.math.min
 
 /**
- * Burchard-Keller tree implementation
+ * Burkhard-Keller tree implementation
  * 
  * @author vvv
  */
-trait BKTree[K, V] {
+trait BKTree[K, V] extends Serializable {
   import scala.math.{ max, min }
   import scala.collection.generic.CanBuildFrom
 
@@ -21,7 +21,7 @@ trait BKTree[K, V] {
   val distance: Distance[K]
 
   private def range(accuracy: Int, d: Int)(n: Node) =
-    (max(d - 1 - accuracy, 0) to min(d - 1 + accuracy, n.children.size - 1)).map { n.children(_) }.filter { _ != null }
+    n.children.view(max(d - 1 - accuracy, 0), min(d /*- 1*/ + accuracy, n.children.size)).filter { _ != null }
 
   private def findStep(accuracy: Int, k: K)(n: Node): Option[((K, V), Int)] = {
     val d = distance(k, n.kv._1)
@@ -47,11 +47,14 @@ trait BKTree[K, V] {
     findStep(accuracy, k)(root)
 
   /**
-   * search for all
+   * search for all, write output into b
    */
-  def search[C](accuracy: Int)(k: K, b: Builder[((K, V), Int), C]): Unit =
+  def search[C](accuracy: Int, k: K, b: Builder[((K, V), Int), C]): Unit =
     searchStep(accuracy, k, b)(root)
 
+  /**
+   * search for all, return output as builder
+   */
   def search[C](accuracy: Int)(k: K)(implicit cbf: CanBuildFrom[_, ((K, V), Int), C]): C = {
     val b = cbf()
     searchStep(accuracy, k, b)(root)
@@ -116,7 +119,8 @@ object BKTree {
 
   protected[metrics] class Node[K, V](
     val kv: (K, V),
-    val children: IndexedSeq[Node[K, V]])
+    val children: IndexedSeq[Node[K, V]]
+    ) extends Serializable
 
   def newBuilder[K: Distance, V] =
     new BKTreeBuilder[K, V]

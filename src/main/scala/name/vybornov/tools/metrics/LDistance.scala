@@ -31,7 +31,7 @@ package name.vybornov.tools.metrics
  *
  *  @author vvv
  */
-class LDistance[T] extends Distance[Iterable[T]] {
+class LDistance[T] extends Distance[Iterable[T]] with Serializable {
   val insertCost = 1
   val deleteCost = 1
   val substituteCost = 1
@@ -56,16 +56,16 @@ class LDistance[T] extends Distance[Iterable[T]] {
 
 }
 
-object LDistance { 
+object LDistance extends Serializable { 
   
   object genDistance extends LDistance
   object charDistance extends LDistance[Char] 
   
-  implicit def distance[T <: Iterable[Char]]: Distance[T] = new Distance[T] {
+  implicit def distance[T <: Iterable[Char]]: Distance[T] = new Distance[T] with Serializable {
     def apply(e1: T, e2: T) = charDistance(e1, e2)
   }
 
-  implicit object stringDistance extends Distance[String] {
+  implicit object stringDistance extends Distance[String] with Serializable {
     def apply(e1: String, e2: String) = charDistance(e1, e2)
   }
   
