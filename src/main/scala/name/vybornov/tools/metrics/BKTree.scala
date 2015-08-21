@@ -11,11 +11,11 @@ import scala.math.min
  * 
  * @author vvv
  */
-trait BKTree[K, V] extends Serializable {
+trait BKTree[K] extends Serializable {
   import scala.math.{ max, min }
   import scala.collection.generic.CanBuildFrom
 
-  type Node = BKTree.Node[K, V]
+  type Node = BKTree.Node[K]
   protected val root: Node
 
   val distance: Distance[K]
@@ -23,19 +23,19 @@ trait BKTree[K, V] extends Serializable {
   private def range(accuracy: Int, d: Int)(n: Node) =
     n.children.view(max(d - 1 - accuracy, 0), min(d /*- 1*/ + accuracy, n.children.size)).filter { _ != null }
 
-  private def findStep(accuracy: Int, k: K)(n: Node): Option[((K, V), Int)] = {
-    val d = distance(k, n.kv._1)
+  private def findStep(accuracy: Int, k: K)(n: Node): Option[(K, Int)] = {
+    val d = distance(k, n.k)
     if (d <= accuracy)
-      Some((n.kv, d))
+      Some((n.k, d))
     else
       range(accuracy, d)(n).map(findStep(accuracy, k)).find(_.isDefined).flatten
   }
 
-  private def searchStep[C](accuracy: Int, k: K, b: Builder[((K, V), Int), C])(n: Node): Unit = {
-    val d = distance(k, n.kv._1)
+  private def searchStep[C](accuracy: Int, k: K, b: Builder[(K, Int), C])(n: Node): Unit = {
+    val d = distance(k, n.k)
 
     if (d <= accuracy)
-      b += ((n.kv, d))
+      b += ((n.k, d))
 
     range(accuracy, d)(n).foreach(searchStep(accuracy, k, b))
   }
@@ -43,19 +43,19 @@ trait BKTree[K, V] extends Serializable {
   /**
    * find any
    */
-  def find(accuracy: Int)(k: K): Option[((K, V), Int)] =
+  def find(accuracy: Int)(k: K): Option[(K, Int)] =
     findStep(accuracy, k)(root)
 
   /**
    * search for all, write output into b
    */
-  def search[C](accuracy: Int, k: K, b: Builder[((K, V), Int), C]): Unit =
+  def search[C](accuracy: Int, k: K, b: Builder[(K, Int), C]): Unit =
     searchStep(accuracy, k, b)(root)
 
   /**
    * search for all, return output as builder
    */
-  def search[C](accuracy: Int)(k: K)(implicit cbf: CanBuildFrom[_, ((K, V), Int), C]): C = {
+  def search[C](accuracy: Int)(k: K)(implicit cbf: CanBuildFrom[_, (K, Int), C]): C = {
     val b = cbf()
     searchStep(accuracy, k, b)(root)
     b.result
@@ -64,15 +64,15 @@ trait BKTree[K, V] extends Serializable {
 
 object BKTree {
 
-  class BKTreeBuilder[K: Distance, V] extends Builder[(K, V), BKTree[K, V]] {
+  class BKTreeBuilder[K: Distance] extends Builder[K, BKTree[K]] {
     import scala.collection.mutable.ArrayBuffer
-    private type Node = BKTree.Node[K, V]
+    private type Node = BKTree.Node[K]
     private var root: Node = null
 
     private val distance = implicitly[Distance[K]]
 
-    private def node(k: K, v: V): Node =
-      new Node((k, v), new ArrayBuffer[Node](0))
+    private def node(k: K): Node =
+      new Node(k, new ArrayBuffer[Node](0))
 
     private def eref(ab: ArrayBuffer[Node], offset: Int, onReuse: Node => Unit, onCreate: => Node) = {
       if (offset >= ab.size)
@@ -83,22 +83,22 @@ object BKTree {
         onReuse(ab(offset))
     }
 
-    private def addTo(n: Node)(k: K, v: V): Unit = {
+    private def addTo(n: Node)(k: K): Unit = {
       val ab = n.children.asInstanceOf[ArrayBuffer[Node]]
-      val d = distance(k, n.kv._1)
+      val d = distance(k, n.k)
       if (d == 0)
         throw new IllegalArgumentException("Duplicate key: " + k)
-      eref(ab, d - 1, addTo(_)(k, v), node(k, v))
+      eref(ab, d - 1, addTo(_)(k), node(k))
     }
 
-    def update(k: K, v: V) =
+    def update(k: K) =
       if (root == null)
-        root = node(k, v)
+        root = node(k)
       else
-        addTo(root)(k, v)
+        addTo(root)(k)
 
-    override def +=(kv: (K, V)) = {
-      update(kv._1, kv._2)
+    override def +=(k: K) = {
+      update(k)
       this
     }
 
@@ -111,22 +111,22 @@ object BKTree {
     else
       root
 
-    override def result: BKTree[K, V] = new BKTree[K, V] {
+    override def result: BKTree[K] = new BKTree[K] {
       val distance = implicitly[Distance[K]]
       val root = ckroot
     }
   }
 
-  protected[metrics] class Node[K, V](
-    val kv: (K, V),
-    val children: IndexedSeq[Node[K, V]]
+  protected[metrics] class Node[K](
+    val k: K,
+    val children: IndexedSeq[Node[K]]
     ) extends Serializable
 
-  def newBuilder[K: Distance, V] =
-    new BKTreeBuilder[K, V]
+  def newBuilder[K: Distance] =
+    new BKTreeBuilder[K]
 
-  def of[K: Distance, V](values: (K, V)*) = {
-    val b = newBuilder[K, V]
+  def of[K: Distance](values: K*) = {
+    val b = newBuilder[K]
     b ++= values
     b.result
   }

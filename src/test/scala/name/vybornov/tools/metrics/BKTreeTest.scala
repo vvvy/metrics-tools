@@ -10,16 +10,12 @@ class BKTreeTest extends FlatSpec {
 
     import LDistanceOptimized._
     
-    val testSet = List(
-        ("apples", "apples"), 
-        ("oranges", "oranges"), 
-        ("pineapples", "pineapples"))
+    val testSet = List("apples", "oranges", "pineapples")
     val t = BKTree.of(testSet: _*)
 
-    assertResult(Some((("apples", "apples"),1)))(t.find(3)("aples"))
-    assertResult(Some((("apples", "apples"),1)))(t.find(1)("aples"))
+    assertResult(Some(("apples",1)))(t.find(3)("aples"))
+    assertResult(Some(("apples",1)))(t.find(1)("aples"))
     assertResult(None)(t.find(1)("ales"))
-
 
   }
 }
