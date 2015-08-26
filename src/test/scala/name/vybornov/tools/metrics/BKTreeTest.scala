@@ -18,4 +18,17 @@ class BKTreeTest extends FlatSpec {
     assertResult(None)(t.find(1)("ales"))
 
   }
+  
+  "CompactBKTree" should "pass basic tests" in {
+
+    import LDistanceOptimized._
+    
+    val testSet = List("apples", "oranges", "pineapples")
+    val t = CompactBKTree.of(testSet: _*)
+
+    assertResult(Some(("apples",1)))(t.find(3)("aples"))
+    assertResult(Some(("apples",1)))(t.find(1)("aples"))
+    assertResult(None)(t.find(1)("ales"))
+
+  }
 }
